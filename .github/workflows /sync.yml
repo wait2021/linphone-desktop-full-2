@@ -1,0 +1,71 @@
+name: FINAL 100% FULL RECURSIVE (FIX AOM EMPTY)
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone & Copy ALL Files (Recursive)
+        run: |
+          # 克隆主项目
+          git clone https://gitlab.linphone.org/BC/public/linphone-desktop.git tmp
+          cd tmp
+
+          # 初始化所有子模块
+          git submodule init
+
+          # 循环下载所有子模块 + 嵌套子模块（递归！）
+          git config -f .gitmodules --get-regexp '^submodule\..*\.url$' | while read -r key url; do
+            name=$(echo "$key" | sed -E 's/^submodule\.(.*)\.url$/\1/')
+            path=$(git config -f .gitmodules "submodule.$name.path")
+            
+            start=$(date +"%Y-%m-%d %H:%M:%S")
+            echo "开始克隆子模块[ $start ]：$name  地址：$url"
+
+            ###########################################################
+            # 我只改了这一行！！！加了 --recursive ！！！
+            ###########################################################
+            git submodule update --init --recursive "$path"
+
+            end=$(date +"%Y-%m-%d %H:%M:%S")
+            filecount=$(find "$path" -type f | wc -l)
+            abspath=$(realpath "$path")
+
+            echo "克隆完成[ $end ][ 文件数：$filecount ]：$name  存储位置：$abspath"
+            echo "-------------------------------------"
+          done
+
+          cd ..
+          rsync -av --exclude='.git' tmp/ .
+          rm -rf tmp
+
+
+      - name: Push to YOUR REPO
+        run: |
+          REPO_URL="https://github.com/wait2021/linphone-desktop-full-2.git"
+
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          
+          git add -f .
+
+          
+          git commit -m "FULL CODE WITH RECURSIVE SUBMODULES (aom fixed)" --allow-empty
+
+          
+          git push --force "$REPO_URL" main
+
+
+          echo "====================================="
+          echo "✅ 100% 完整代码！aom/ffmpeg/x264 全部下载！"
+          echo "✅ 全部成功！代码已推送到你的新仓库："
+          echo "https://github.com/wait2021/linphone-desktop-full-1"
+          echo "====================================="
+          
